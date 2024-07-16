@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Superhero Dashboards</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            margin: 0;
+            padding: 0;
+        }
+        nav {
+            width: 250px;
+            border-right: 1px solid #ccc;
+            padding: 20px;
+            background-color: #f4f4f4;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+        }
+        main {
+            flex-grow: 1;
+            padding: 20px;
+        }
+        input, button {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            box-sizing: border-box;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            padding: 10px;
+            border: 1px solid #ddd;
+            text-align: left;
+        }
+        th {
+            background-color: #f4f4f4;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        #chart-container {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: white;
+            padding: 20px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+            z-index: 1000;
+            width: 80%;
+            max-width: 800px;
+        }
+        #chart-container canvas {
+            max-width: 100%;
+            height: auto;
+        }
+        #close-chart {
+            display: block;
+            margin: 10px 0;
+            padding: 10px;
+            background-color: #f4f4f4;
+            border: 1px solid #ddd;
+            cursor: pointer;
+            text-align: center;
+        }
+        nav {
+            display: flex;
+            flex-direction: column;
+        }
+        nav a {
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.8); /* White background with slight transparency */
+            color: #000;
+            text-decoration: none;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+        nav a:hover {
+            background: #ddd;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <nav>
+        <a href="/">Search for Avenger</a>
+        <a href="/dashboards">Avenger's Homepage</a>
+        <h2>Superhero Dashboards</h2>
+        <label for="superhero-input">Enter or Select Superhero:</label>
+        <input type="text" id="superhero-input" name="superhero-input" placeholder="Enter or Select a superhero" list="superhero-list" oninput="filterSuperheroes()"/>
+        <datalist id="superhero-list"></datalist>
+        
+        <button onclick="loadSuperheroDashboard()">Load Dashboard</button>
+    </nav>
+    <main>
+        <h2 id="superhero-name">Select a superhero</h2>
+        <div id="dashboard-content">
+            <!-- Superhero dashboard content will be loaded here -->
+        </div>
+    </main>
+
+    <div id="chart-container">
+        <canvas id="chart"></canvas>
+        <div id="close-chart" onclick="closeChart()">Close</div>
+    </div>
+
+    <script>
+        let superheroes = [];
+        let chartInstance = null;  // Variable to store the chart instance
+
+        // Function to fetch the list of CSV files from the server
+        async function fetchSuperheroList() {
+            try {
+                const response = await fetch('/api/superheroes');
+                const files = await response.json();
+                superheroes = files;
+                populateDatalist();
+            } catch (error) {
+                console.error('Error fetching superhero list:', error);
+            }
+        }
+
+        // Function to populate the datalist with superhero names
+        function populateDatalist() {
+            const datalist = document.getElementById('superhero-list');
+            datalist.innerHTML = '';
+            superheroes.forEach(hero => {
+                const option = document.createElement('option');
+                option.value = hero;
+                datalist.appendChild(option);
+            });
+        }
+
+        // Function to filter superheroes based on input
+        function filterSuperheroes() {
+            const filter = document.getElementById('superhero-input').value.toLowerCase();
+            const datalist = document.getElementById('superhero-list');
+            datalist.innerHTML = '';
+            superheroes.forEach(hero => {
+                if (hero.toLowerCase().includes(filter)) {
+                    const option = document.createElement('option');
+                    option.value = hero;
+                    datalist.appendChild(option);
+                }
+            });
+        }
+
+        // Function to load the superhero dashboard
+        function loadSuperheroDashboard() {
+            const selectedHero = document.getElementById('superhero-input').value;
+            if (!selectedHero || !superheroes.includes(selectedHero)) return;
+            
+            document.getElementById('superhero-name').textContent = selectedHero.replace('.', ' ');
+            // Load the corresponding CSV file content
+            fetch(`/api/superhero/${selectedHero}`)
+                .then(response => response.text())
+                .then(data => {
+                    displayCSVContent(data, selectedHero);
+                })
+                .catch(error => {
+                    document.getElementById('dashboard-content').textContent = 'Error loading dashboard';
+                    console.error('Error:', error);
+                });
+        }
+
+        // Function to display the CSV content in a table
+        function displayCSVContent(data, superhero) {
+            const rows = data.split('\n');
+            const table = document.createElement('table');
+            rows.forEach((row, index) => {
+                const cols = row.split(',');
+                const tr = document.createElement('tr');
+                cols.forEach(col => {
+                    console.log(`Processing column ${index}: ${col}`);
+                    const cell = document.createElement(index === 0 ? 'th' : 'td');
+                    const trimmedCol = col.trim(); // Ensure no extra spaces
+                    if (index !== 0 && (trimmedCol === 'A' || trimmedCol === 'D' || trimmedCol === 'H' || trimmedCol === 'AD' || trimmedCol === 'AH' || trimmedCol === 'DH' || trimmedCol === 'ADH')) {
+                        const link = document.createElement('a');
+                        link.href = '#';
+                        link.textContent = trimmedCol;
+                        link.onclick = () => showChart(trimmedCol);
+                        cell.appendChild(link);
+                    } else {
+                        cell.textContent = trimmedCol;
+                    }
+                    tr.appendChild(cell);
+                });
+                table.appendChild(tr);
+            });
+
+            // Add the thumb up button and like count
+            const likeCount = localStorage.getItem(`likes-${superhero}`) || 0;
+            const likeButton = document.createElement('button');
+            likeButton.textContent = '👍 Thumb Up';
+            likeButton.onclick = () => {
+                const newLikeCount = parseInt(likeCount) + 1;
+                localStorage.setItem(`likes-${superhero}`, newLikeCount);
+                document.getElementById('like-count').textContent = newLikeCount;
+            };
+
+            const likeCountSpan = document.createElement('span');
+            likeCountSpan.id = 'like-count';
+            likeCountSpan.textContent = likeCount;
+
+            const likeContainer = document.createElement('div');
+            likeContainer.style.marginTop = '20px';
+            likeContainer.appendChild(likeButton);
+            likeContainer.appendChild(document.createTextNode(' ')); // Space between button and count
+            likeContainer.appendChild(likeCountSpan);
+            likeContainer.appendChild(document.createTextNode(' Likes'));
+
+            const dashboardContent = document.getElementById('dashboard-content');
+            dashboardContent.innerHTML = '';
+            dashboardContent.appendChild(table);
+            dashboardContent.appendChild(likeContainer);
+        }
+
+        // Function to generate random data and show the chart
+        function showChart(type) {
+            const labels = Array.from({ length: 10 }, (_, i) => `Month ${i + 1}`);
+            const data = Array.from({ length: 10 }, () => Math.floor(Math.random() * 100));
+
+            // Destroy previous chart instance if it exists
+            if (chartInstance) {
+                chartInstance.destroy();
+            }
+
+            const ctx = document.getElementById('chart').getContext('2d');
+            chartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels,
+                    datasets: [{
+                        label: `Invaders defeated (${type})`,
+                        data,
+                        borderColor: 'rgba(75, 192, 192, 1)',
+                        borderWidth: 2,
+                        fill: false
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        x: {
+                            display: true,
+                            title: {
+                                display: true,
+                                text: 'Month'
+                            }
+                        },
+                        y: {
+                            display: true,
+                            title: {
+                                display: true,
+                                text: 'Invaders defeated'
+                            }
+                        }
+                    }
+                }
+            });
+
+            document.getElementById('chart-container').style.display = 'block';
+        }
+
+        // Function to close the chart
+        function closeChart() {
+            document.getElementById('chart-container').style.display = 'none';
+        }
+
+        // Function to get query parameter by name
+        function getQueryParameter(name) {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get(name);
+        }
+
+        // Load the dashboard automatically if the superhero query parameter is present
+        window.onload = () => {
+            fetchSuperheroList().then(() => {
+                const superhero = getQueryParameter('superhero');
+                if (superhero) {
+                    document.getElementById('superhero-input').value = superhero;
+                    loadSuperheroDashboard();
+                }
+            });
+        };
+    </script>
+</body>
+</html>

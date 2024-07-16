@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Superhero Query</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: url("{{ url_for('static', filename='download.jpg') }}") no-repeat center center fixed;
+            background-size: 1000px 1000px;
+            color: rgb(243, 243, 241);
+        }
+        header {
+            text-align: center;
+            margin-bottom: 20px;
+            background: rgba(255, 255, 255, 0.8); /* White background with slight transparency */
+            padding: 20px;
+            border-radius: 10px;
+        }
+        header h1 {
+            color: #ff4500; /* Change the color of the Avengers vs Invaders header */
+            background: rgba(195, 192, 192, 0.8); /* White background with slight transparency */
+            padding: 10px;
+            border-radius: 10px;
+            display: contents;
+        }
+        h1, h2 {
+            text-align: center;
+        }
+        h2 {
+            background: rgba(128, 126, 126, 0.8); /* White background with slight transparency */
+            padding: 10px;
+            border-radius: 10px;
+            display: inline-block;
+        }
+        form {
+            max-width: 600px;
+            margin: 0 auto;
+            background: rgba(0, 0, 0, 0.5); /* Semi-transparent background */
+            padding: 20px;
+            border-radius: 10px;
+        }
+        form div {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        input, select, button {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+            border: 1px solid #cc4444;
+            border-radius: 4px;
+            background: rgba(255, 255, 255, 0.8); /* Semi-transparent input background */
+        }
+        #clearBtn, #shareBtn {
+            background-color: #f44336;
+            color: white;
+            border: none;
+        }
+        .result {
+            text-align: center;
+            margin-top: 20px;
+            background: rgba(255, 255, 255, 0.8); /* White background with slight transparency */
+            padding: 20px;
+            border-radius: 10px;
+            color: black; /* Text color inside the result box */
+        }
+        nav {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 20px;
+        }
+        nav a {
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.8); /* White background with slight transparency */
+            color: #831515;
+            text-decoration: none;
+            border-radius: 5px;
+        }
+        nav a:hover {
+            background: #ddd;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Avengers vs Invaders</h1>
+    </header>
+    
+    
+    <form id="queryForm" action="/query" method="POST">
+        <div>
+            <nav>
+                <a href="/">Search for Avenger</a>
+                <a href="/dashboards">Avenger's Homepage</a>
+            </nav>
+        </div>
+        <div>
+            <label>Country:</label>
+            <input type="text" id="country" name="country" placeholder="Enter Country or Select" value="{{ request.form.country or '' }}" list="country_list" />
+            <datalist id="country_list"></datalist>
+        </div>
+        <div>
+            <label>Invader Species:</label>
+            <input type="text" id="invader_species" name="invader_species" placeholder="Enter Invader Species or Select" value="{{ request.form.invader_species or '' }}" list="invader_species_list" />
+            <datalist id="invader_species_list"></datalist>
+        </div>
+        <div>
+            <label>Role:</label>
+            <input type="text" id="role" name="role" placeholder="Enter Role or Select" value="{{ request.form.role or '' }}" list="role_list" />
+            <datalist id="role_list"></datalist>
+        </div>
+        <button type="submit">Search</button>
+        <button type="button" id="clearBtn">Reset</button>
+        <button type="button" id="shareBtn">Share</button>
+    </form>
+
+    <div class="result">
+        <h2>Superhero Email: <u>{{ email }}</u></h2>
+        <nav>
+            <a href="/dashboards?superhero={{ email.split('@')[0] }}" id="dashboardLink">Go to Dashboard</a>
+        </nav>
+    </div>
+
+    <!-- Script to enable autocomplete and populate datalists --> 
+    <script>
+        $(function() {
+            // Fetch countries from the backend and populate datalist
+            $.getJSON('/get_countries', function(countries) {
+                var countryList = $("#country_list");
+                countries.forEach(function(country) {
+                    countryList.append(new Option(country, country));
+                });
+            });
+
+            // Fetch invader species from the backend and populate datalist
+            $.getJSON('/get_invader_species', function(invaderSpecies) {
+                var invaderSpeciesList = $("#invader_species_list");
+                invaderSpecies.forEach(function(species) {
+                    invaderSpeciesList.append(new Option(species, species));
+                });
+            });
+
+            // Fetch roles from the backend and populate datalist
+            $.getJSON('/get_roles', function(roles) {
+                var roleList = $("#role_list");
+                roles.forEach(function(role) {
+                    roleList.append(new Option(role, role));
+                });
+            });
+
+            // Event listener for invader_species changes
+            $("#invader_species").on("change", function() {
+                var selectedSpecies = $(this).val().toLowerCase();
+                var roleList = $("#role_list");
+                roleList.empty();
+
+                if (selectedSpecies == "aliens" || selectedSpecies == "predators") {
+                    roleList.append(new Option("attack_role", "attack_role"));
+                } else {
+                    // Fetch roles from the backend again to repopulate
+                    $.getJSON('/get_roles', function(roles) {
+                        roles.forEach(function(role) {
+                            roleList.append(new Option(role, role));
+                        });
+                    });
+                }
+            });
+
+            // Clear button functionality
+            $("#clearBtn").click(function() {
+                $("#queryForm")[0].reset();
+                $("#country").val('');
+                $("#invader_species").val('');
+                $("#role").val('');
+            });
+        });
+    </script>
+</body>
+</html>
